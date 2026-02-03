@@ -29,7 +29,7 @@ let BOT_USERNAME = 'Kinochi_uz_bot';
 
 // Redis client
 const redisClient = redis.createClient({
-    url: 'redis://localhost:6379'
+    url: process.env.REDIS_URL
 });
 
 redisClient.on('error', err => console.error('Redis xatosi:', err));
