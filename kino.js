@@ -14,7 +14,7 @@ const NEWS_CHANNEL = "KInochi_ux";
 const ADMIN_IDS = [8173188671, 8248009618];
 const ADMIN_USERNAME = "safoyev9225";
 const PAYMENT_CHANNEL = "safoyev0_0";
-const CARD_NUMBER = "8600 1234 5678 9012";
+const CARD_NUMBER = "5614 6829 1317 5461";
 
 const bot = new TelegramBot(TOKEN, {
     polling: {
