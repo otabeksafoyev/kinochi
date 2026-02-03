@@ -27,9 +27,16 @@ const bot = new TelegramBot(TOKEN, {
 
 let BOT_USERNAME = 'Kinochi_uz_bot';
 
-// Redis client
+
+
+// Redis client — hardcode variant (test uchun)
 const redisClient = redis.createClient({
-    url: process.env.REDIS_URL
+    socket: {
+        host: 'switchyard.proxy.rlwy.net',
+        port: 10396
+    },
+    username: 'default',
+    password: 'fYCBjBwRDAUtUqPKugiVtRcosGSrxhyU'
 });
 
 redisClient.on('error', err => console.error('Redis xatosi:', err));
@@ -38,9 +45,13 @@ redisClient.on('error', err => console.error('Redis xatosi:', err));
 async function connectRedis() {
     if (!redisClient.isOpen) {
         await redisClient.connect();
-        console.log('✅ Redis ulandi');
+        console.log('✅ Redis ulandi (hardcode bilan)');
     }
 }
+
+
+
+
 
 // MongoDB collections va global o'zgaruvchilar
 let client;
