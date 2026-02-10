@@ -27,7 +27,7 @@ const bot = new TelegramBot(TOKEN, {
 
 let BOT_USERNAME = 'Kinochi_uz_bot';
 
-// Redis client — hardcode variant (test uchun)
+// Redis client
 const redisClient = redis.createClient({
     socket: {
         host: 'switchyard.proxy.rlwy.net',
@@ -39,37 +39,30 @@ const redisClient = redis.createClient({
 
 redisClient.on('error', err => console.error('Redis xatosi:', err));
 
-// Redis ulanish
-async function connectRedis() {
-    if (!redisClient.isOpen) {
-        await redisClient.connect();
-        console.log('✅ Redis ulandi (hardcode bilan)');
-    }
-}
+// Viloyatlar ro'yxati
+const REGIONS = [
+    "Andijon", "Buxoro", "Farg'ona", "Jizzax", "Namangan", "Navoiy",
+    "Qashqadaryo", "Qoraqalpog'iston", "Samarqand", "Sirdaryo",
+    "Surxondaryo", "Toshkent shahri", "Toshkent viloyati", "Xorazm"
+];
 
-// MongoDB collections va global o'zgaruvchilar
-let client;
-let db;
-let movies;
-let parts;
-let settings;
-let banned_users;
-let counters;
-let premium_users;
-let pending_payments;
-let users;
-
+// MongoDB collections
+let client, db, movies, parts, settings, banned_users, counters, premium_users, pending_payments, users;
 let addMovieSession = {};
 let pendingIdChange = {};
 const requiredChannelsCache = [];
 let bannedCache = new Set();
 
-// Viloyatlar ro'yxati
-const REGIONS = ["Andijon","Buxoro","Farg'ona","Jizzax","Namangan","Navoiy","Qashqadaryo","Qoraqalpog'iston Respublikasi","Samarqand","Sirdaryo","Surxondaryo","Toshkent shahri","Toshkent viloyati","Xorazm"];
-
 // ======================
 // CACHE MANAGEMENT
 // ======================
+async function connectRedis() {
+    if (!redisClient.isOpen) {
+        await redisClient.connect();
+        console.log('✅ Redis ulandi');
+    }
+}
+
 async function loadCaches() {
     try {
         await connectRedis();
@@ -140,43 +133,29 @@ async function connectToMongo() {
         console.log("✅ MongoDB ulandi");
         db = client.db("kino_bot");
 
-        movies           = db.collection("movies");
-        parts            = db.collection("parts");
-        settings         = db.collection("settings");
-        banned_users     = db.collection("banned_users");
-        counters         = db.collection("counters");
-        premium_users    = db.collection("premium_users");
+        movies = db.collection("movies");
+        parts = db.collection("parts");
+        settings = db.collection("settings");
+        banned_users = db.collection("banned_users");
+        counters = db.collection("counters");
+        premium_users = db.collection("premium_users");
         pending_payments = db.collection("pending_payments");
-        users            = db.collection("users");
+        users = db.collection("users");
 
-        await counters.updateOne(
-            { _id: "movie_id" },
-            { $setOnInsert: { seq: 99 } },
-            { upsert: true }
-        );
+        await counters.updateOne({ _id: "movie_id" }, { $setOnInsert: { seq: 99 } }, { upsert: true });
 
-        await settings.updateOne(
-            { key: "reklama_caption" },
-            { $setOnInsert: { value: "Anime tomosha qilmoqchi bo‘lsangiz: 👉 @RimikAnime_bot" } },
-            { upsert: true }
-        );
+        await settings.updateOne({ key: "reklama_caption" }, { $setOnInsert: { value: "Anime tomosha qilmoqchi bo‘lsangiz: 👉 @RimikAnime_bot" } }, { upsert: true });
 
-        await settings.updateOne(
-            { key: "premium_prompt" },
-            { $setOnInsert: { value: "💎 Premium olsangiz, reklamasiz va yuklab olish imkoniyati bor!" } },
-            { upsert: true }
-        );
+        await settings.updateOne({ key: "premium_prompt" }, { $setOnInsert: { value: "💎 Premium olsangiz, reklamasiz va yuklab olish imkoniyati bor!" } }, { upsert: true });
 
         await loadCaches();
         refreshCachesPeriodically();
-
     } catch (err) {
         console.error("❌ Ulanish xatosi:", err.message);
         process.exit(1);
     }
 }
 
-// 3 raqamli ID
 async function getNextMovieId() {
     const result = await counters.findOneAndUpdate(
         { _id: "movie_id" },
@@ -187,7 +166,7 @@ async function getNextMovieId() {
 }
 
 // ======================
-// Subscription va holatni tekshirish
+// Viloyat funksiyalari
 // ======================
 async function get_user_required_channels(user_id) {
     let base = get_required_channels();
@@ -319,9 +298,9 @@ async function send_start_banner(chat_id) {
 
     const banner_url = "https://i.postimg.cc/7PGZzTkC/Screenshot-2026-01-17-232030.png";
 
-    const caption = `🎬 <b>@KinochiMovieBot</b> — eng sifatli filmlar va seriallar!\n\n` +
-`🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
-`📺 Hozir tomosha qilamizmi? 👇`;
+    const caption = `🎬 <b>@Kinochi_uz_bot</b> — eng sifatli filmlar va seriallar!\n\n` +
+        `🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
+        `📺 Hozir tomosha qilamizmi? 👇`;
 
     const markup = {
         inline_keyboard: [
@@ -371,14 +350,44 @@ async function send_region_survey(chat_id) {
 }
 
 // ======================
-// Oddiy raqam yozsa kino chiqarish
+// /start
+// ======================
+bot.onText(/\/start/, async (msg) => {
+    const chatId = msg.chat.id;
+    await users.updateOne({ user_id: chatId }, { $setOnInsert: { user_id: chatId } }, { upsert: true });
+
+    const args = msg.text.split(' ');
+    if (args.length > 1) {
+        const movie_id = args[1].trim().padStart(3, '0');
+        const movie = await movies.findOne({ _id: movie_id });
+        if (movie) {
+            if (await parts.findOne({ movie_id, part: 1 })) {
+                await check_subscription_and_proceed(chatId, movie_id, 1);
+            } else {
+                send_trailer_with_poster(chatId, movie);
+            }
+        } else {
+            bot.sendMessage(chatId, "Bunday ID bilan kino topilmadi");
+        }
+        return;
+    }
+
+    await send_start_banner(chatId);
+});
+
+// ======================
+// Oddiy raqam yozsa kino chiqarish (buyruqlarni o'tkazib yuborish)
 // ======================
 bot.on('text', async (msg) => {
     const text = msg.text.trim();
-    if (text.startsWith('/') || text.length === 0 || !/^\d{1,3}$/.test(text)) return;
+
+    // Agar buyruq bo'lsa (/ bilan boshlansa) — o'tkazib yuboramiz
+    if (text.startsWith('/')) return;
+
+    // Agar raqam bo'lmasa yoki bo'sh bo'lsa — o'tkazib yuboramiz
+    if (text.length === 0 || !/^\d{1,3}$/.test(text)) return;
 
     const movie_id = text.padStart(3, '0');
-    if (!movies) return bot.sendMessage(msg.chat.id, "Bot hali ulanmagan, biroz kuting...");
     const movie = await movies.findOne({ _id: movie_id });
 
     if (movie) {
@@ -393,7 +402,7 @@ bot.on('text', async (msg) => {
 });
 
 // ======================
-// INLINE QUERY — YANGILANGAN VERSIYA
+// INLINE QUERY
 // ======================
 bot.on('inline_query', async (query) => {
     const q = query.query.toLowerCase().trim();
@@ -715,7 +724,7 @@ bot.onText(/\/changeid\s+(.+)/, async (msg, match) => {
 
 bot.onText(/\/cancel/, async (msg) => {
     const uid = msg.from.id;
-    if (!ADMIN_IDS.includes(uid)) return; // faqat admin
+    if (!ADMIN_IDS.includes(uid)) return;
 
     let canceled = false;
 
@@ -796,7 +805,7 @@ bot.onText(/\/deletemovie\s+(\d+)/, async (msg, match) => {
 });
 
 // ======================
-// SESSION HANDLING (addMovieSession va pendingIdChange)
+// SESSION HANDLING
 // ======================
 bot.on('message', async (msg) => {
     const userId = msg.from.id;
@@ -951,6 +960,126 @@ bot.on('channel_post', async (msg) => {
         );
         bot.sendMessage(ADMIN_IDS[0], `✅ ${movie_id} — ${part}-qism yuklandi`).catch(() => {});
     }
+});
+
+// ======================
+// Region admin commands
+// ======================
+bot.onText(/\/enable_region_survey/, async (msg) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+    await settings.updateOne(
+        { key: "region_survey_enabled" },
+        { $set: { value: true } },
+        { upsert: true }
+    );
+
+    let sent = 0;
+    const cursor = users.find({ region: { $exists: false } });
+    for await (const u of cursor) {
+        try {
+            await send_region_survey(u.user_id);
+            sent++;
+        } catch {}
+    }
+
+    bot.sendMessage(msg.chat.id, `✅ Viloyat so'rovnomasi yoqildi va ${sent} ta foydalanuvchiga yuborildi`);
+});
+
+bot.onText(/\/disable_region_survey/, async (msg) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+    await settings.updateOne(
+        { key: "region_survey_enabled" },
+        { $set: { value: false } },
+        { upsert: true }
+    );
+    bot.sendMessage(msg.chat.id, "✅ Viloyat so'rovnomasi o'chirildi");
+});
+
+bot.onText(/\/add_region_channel\s+(\S+)\s+(.+)/, async (msg, match) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+
+    const region = match[1];
+    const channel = match[2].replace('@', '').trim();
+
+    if (!REGIONS.includes(region)) {
+        return bot.sendMessage(msg.chat.id, "❌ Noto'g'ri viloyat nomi");
+    }
+
+    await settings.updateOne(
+        { key: "region_channels" },
+        { $addToSet: { [`channels.${region}`]: channel } },
+        { upsert: true }
+    );
+
+    bot.sendMessage(msg.chat.id, `✅ ${region} viloyati uchun @${channel} qo'shildi`);
+});
+
+bot.onText(/\/remove_region_channel\s+(\S+)\s+(.+)/, async (msg, match) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+
+    const region = match[1];
+    const channel = match[2].replace('@', '').trim();
+
+    if (!REGIONS.includes(region)) {
+        return bot.sendMessage(msg.chat.id, "❌ Noto'g'ri viloyat nomi");
+    }
+
+    const result = await settings.updateOne(
+        { key: "region_channels" },
+        { $pull: { [`channels.${region}`]: channel } }
+    );
+
+    bot.sendMessage(msg.chat.id, result.modifiedCount ? "✅ O'chirildi" : "❌ Topilmadi");
+});
+
+bot.onText(/\/list_region_channels/, async (msg) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+
+    const doc = await settings.findOne({ key: "region_channels" });
+    let text = "<b>Viloyat kanallari:</b>\n\n";
+
+    if (doc && doc.channels) {
+        for (const region in doc.channels) {
+            const chans = doc.channels[region];
+            text += `📍 ${region}:\n${chans.map(c => `• @${c}`).join('\n') || 'hech qanday kanal yo‘q'}\n\n`;
+        }
+    } else {
+        text += "Hozircha hech qanday viloyatga maxsus kanal qo‘shilmagan.";
+    }
+
+    bot.sendMessage(msg.chat.id, text, { parse_mode: "HTML" });
+});
+
+// ======================
+// Statistika
+// ======================
+bot.onText(/\/stats/, async (msg) => {
+    if (!ADMIN_IDS.includes(msg.from.id)) return;
+
+    const total_users = await users.countDocuments({});
+    const total_movies = await movies.countDocuments({});
+    const total_parts = await parts.countDocuments({});
+    const total_views = await movies.aggregate([{ $group: { _id: null, total: { $sum: "$views" } } }]).toArray().then(r => r[0]?.total || 0);
+
+    let text = `📊 <b>Bot statistikasi</b>\n\n` +
+        `👥 Foydalanuvchilar: ${total_users}\n` +
+        `🎬 Kinolar: ${total_movies}\n` +
+        `📼 Qismlar: ${total_parts}\n` +
+        `👁 Jami ko'rishlar: ${total_views}\n\n`;
+
+    const regionStats = await users.aggregate([
+        { $group: { _id: "$region", count: { $sum: 1 } } }
+    ]).toArray();
+
+    const unanswered = await users.countDocuments({ region: { $exists: false } });
+
+    text += "<b>Viloyatlar bo'yicha:</b>\n";
+    regionStats.forEach(r => {
+        text += `${r._id || "Noma'lum"}: ${r.count} ta\n`;
+    });
+    text += `Javob bermagan: ${unanswered} ta\n`;
+
+    bot.sendMessage(msg.chat.id, text, { parse_mode: "HTML" });
 });
 
 // ======================
