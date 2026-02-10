@@ -8,13 +8,21 @@
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "description": "",
   "dependencies": {
     "dotenv": "^17.2.3",
     "express": "^5.2.1",
-    "mongodb": "^7.0.0",
+    "mongodb": "^7.1.0",
     "node-telegram-bot-api": "^0.67.0",
     "redis": "^5.10.0",
     "uuid": "^13.0.0"
-  }
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/otabeksafoyev/kinochi.git"
+  },
+  "bugs": {
+    "url": "https://github.com/otabeksafoyev/kinochi/issues"
+  },
+  "homepage": "https://github.com/otabeksafoyev/kinochi#readme",
+  "description": ""
 }

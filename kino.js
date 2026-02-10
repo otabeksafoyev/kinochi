@@ -46,8 +46,18 @@ const REGIONS = [
     "Surxondaryo", "Toshkent shahri", "Toshkent viloyati", "Xorazm"
 ];
 
-// MongoDB collections
-let client, db, movies, parts, settings, banned_users, counters, premium_users, pending_payments, users;
+// MongoDB collections va global o'zgaruvchilar
+let client;
+let db;
+let movies;
+let parts;
+let settings;
+let banned_users;
+let counters;
+let premium_users;
+let pending_payments;
+let users;
+
 let addMovieSession = {};
 let pendingIdChange = {};
 const requiredChannelsCache = [];
@@ -133,29 +143,43 @@ async function connectToMongo() {
         console.log("✅ MongoDB ulandi");
         db = client.db("kino_bot");
 
-        movies = db.collection("movies");
-        parts = db.collection("parts");
-        settings = db.collection("settings");
-        banned_users = db.collection("banned_users");
-        counters = db.collection("counters");
-        premium_users = db.collection("premium_users");
+        movies           = db.collection("movies");
+        parts            = db.collection("parts");
+        settings         = db.collection("settings");
+        banned_users     = db.collection("banned_users");
+        counters         = db.collection("counters");
+        premium_users    = db.collection("premium_users");
         pending_payments = db.collection("pending_payments");
-        users = db.collection("users");
+        users            = db.collection("users");
 
-        await counters.updateOne({ _id: "movie_id" }, { $setOnInsert: { seq: 99 } }, { upsert: true });
+        await counters.updateOne(
+            { _id: "movie_id" },
+            { $setOnInsert: { seq: 99 } },
+            { upsert: true }
+        );
 
-        await settings.updateOne({ key: "reklama_caption" }, { $setOnInsert: { value: "Anime tomosha qilmoqchi bo‘lsangiz: 👉 @RimikAnime_bot" } }, { upsert: true });
+        await settings.updateOne(
+            { key: "reklama_caption" },
+            { $setOnInsert: { value: "Anime tomosha qilmoqchi bo‘lsangiz: 👉 @RimikAnime_bot" } },
+            { upsert: true }
+        );
 
-        await settings.updateOne({ key: "premium_prompt" }, { $setOnInsert: { value: "💎 Premium olsangiz, reklamasiz va yuklab olish imkoniyati bor!" } }, { upsert: true });
+        await settings.updateOne(
+            { key: "premium_prompt" },
+            { $setOnInsert: { value: "💎 Premium olsangiz, reklamasiz va yuklab olish imkoniyati bor!" } },
+            { upsert: true }
+        );
 
         await loadCaches();
         refreshCachesPeriodically();
+
     } catch (err) {
         console.error("❌ Ulanish xatosi:", err.message);
         process.exit(1);
     }
 }
 
+// 3 raqamli ID
 async function getNextMovieId() {
     const result = await counters.findOneAndUpdate(
         { _id: "movie_id" },
@@ -166,7 +190,7 @@ async function getNextMovieId() {
 }
 
 // ======================
-// Viloyat funksiyalari
+// Subscription va holatni tekshirish
 // ======================
 async function get_user_required_channels(user_id) {
     let base = get_required_channels();
@@ -299,8 +323,8 @@ async function send_start_banner(chat_id) {
     const banner_url = "https://i.postimg.cc/7PGZzTkC/Screenshot-2026-01-17-232030.png";
 
     const caption = `🎬 <b>@Kinochi_uz_bot</b> — eng sifatli filmlar va seriallar!\n\n` +
-        `🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
-        `📺 Hozir tomosha qilamizmi? 👇`;
+`🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
+`📺 Hozir tomosha qilamizmi? 👇`;
 
     const markup = {
         inline_keyboard: [
@@ -376,7 +400,7 @@ bot.onText(/\/start/, async (msg) => {
 });
 
 // ======================
-// Oddiy raqam yozsa kino chiqarish (buyruqlarni o'tkazib yuborish)
+// Oddiy raqam yozsa kino chiqarish
 // ======================
 bot.on('text', async (msg) => {
     const text = msg.text.trim();
