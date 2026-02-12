@@ -280,14 +280,35 @@ async function check_subscription_and_proceed(chat_id, movie_id, part = 1, page 
     const premium = await is_premium(chat_id);
 
     if (!premium && !(await is_subscribed(chat_id))) {
-        const markup = { inline_keyboard: [] };
         const statuses = await get_subscription_statuses(chat_id);
+
+        let messageText = "Film/serial ko‘rish uchun quyidagi kanallarga obuna bo‘ling:\n\n";
+        const markup = { inline_keyboard: [] };
+
         statuses.forEach(status => {
-            const text = status.subscribed ? `✅ @${status.channel}` : `📢 @${status.channel}`;
-            markup.inline_keyboard.push([{ text, url: status.subscribed ? undefined : `https://t.me/${status.channel}` }]);
+            if (status.subscribed) {
+                messageText += `✅ @${status.channel} — obuna bo‘lgansiz\n`;
+            } else {
+                messageText += `📢 @${status.channel} — obuna bo‘ling!\n`;
+                markup.inline_keyboard.push([{
+                    text: `Obuna bo'lish → @${status.channel}`,
+                    url: `https://t.me/${status.channel}`
+                }]);
+            }
         });
-        markup.inline_keyboard.push([{ text: "✅ Tekshirish", callback_data: `check_sub_play_${movie_id}_${part}_${page}` }]);
-        return bot.sendMessage(chat_id, "Film/serial ko‘rish uchun quyidagi kanallarga obuna bo‘ling:", { reply_markup: markup });
+
+        // Agar obuna bo'lmagan kanallar bo'lsa, tekshirish tugmasini qo'shamiz
+        if (markup.inline_keyboard.length > 0) {
+            markup.inline_keyboard.push([{
+                text: "✅ Tekshirib ko'rdim",
+                callback_data: `check_sub_play_${movie_id}_${part}_${page}`
+            }]);
+        }
+
+        return bot.sendMessage(chat_id, messageText, {
+            parse_mode: "HTML",
+            reply_markup: markup.inline_keyboard.length > 0 ? markup : undefined
+        });
     }
 
     send_part(chat_id, movie_id, part, page, premium);
@@ -1107,7 +1128,7 @@ bot.onText(/\/stats/, async (msg) => {
 });
 
 // ======================
-// Express
+// Express (keep-alive uchun)
 // ======================
 const app = express();
 app.get("/", (req, res) => res.send("Kinochi.uz Bot ishlayapti"));
