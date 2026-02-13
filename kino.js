@@ -8,7 +8,9 @@ const redis = require('redis');
 // ======================
 const TOKEN = "8385678349:AAEc_PDzfpP0fq2wv0jlDUfClXoxPRnISOM";
 const MONGO_URL = "mongodb+srv://safootabekyev_db_user:kKjW0vqmvhPbPzk6@cluster0.pniaa23.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0";
-const UPLOAD_CHANNEL = "kinochidb";
+
+const UPLOAD_CHANNEL_ID = -1003687783118;   // ← kanalning chat ID si
+
 const SUB_CHANNEL = "KInochi_ux";
 const NEWS_CHANNEL = "KInochi_ux";
 const ADMIN_IDS = [8173188671, 8248009618];
@@ -297,7 +299,6 @@ async function check_subscription_and_proceed(chat_id, movie_id, part = 1, page 
             }
         });
 
-        // Agar obuna bo'lmagan kanallar bo'lsa, tekshirish tugmasini qo'shamiz
         if (markup.inline_keyboard.length > 0) {
             markup.inline_keyboard.push([{
                 text: "✅ Tekshirib ko'rdim",
@@ -343,9 +344,9 @@ async function send_start_banner(chat_id) {
 
     const banner_url = "https://i.postimg.cc/7PGZzTkC/Screenshot-2026-01-17-232030.png";
 
-    const caption = `🎬 <b>@Kinochi_uz_bot</b> — eng sifatli filmlar va seriallar!\n\n` +
-`🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
-`📺 Hozir tomosha qilamizmi? 👇`;
+    const caption = `🎬 <b>@${BOT_USERNAME}</b> — eng sifatli filmlar va seriallar!\n\n` +
+                    `🔥 Eng ko'p ko'rilgan: <b>${top_movie.title}</b>\n\n` +
+                    `📺 Hozir tomosha qilamizmi? 👇`;
 
     const markup = {
         inline_keyboard: [
@@ -412,7 +413,7 @@ bot.onText(/\/start/, async (msg) => {
                 send_trailer_with_poster(chatId, movie);
             }
         } else {
-            bot.sendMessage(chatId, "Bunday ID bilan kino topilmadi");
+            bot.sendMessage(chatId, "Bunday kodli kino topilmadi");
         }
         return;
     }
@@ -426,10 +427,7 @@ bot.onText(/\/start/, async (msg) => {
 bot.on('text', async (msg) => {
     const text = msg.text.trim();
 
-    // Agar buyruq bo'lsa (/ bilan boshlansa) — o'tkazib yuboramiz
     if (text.startsWith('/')) return;
-
-    // Agar raqam bo'lmasa yoki bo'sh bo'lsa — o'tkazib yuboramiz
     if (text.length === 0 || !/^\d{1,3}$/.test(text)) return;
 
     const movie_id = text.padStart(3, '0');
@@ -442,7 +440,7 @@ bot.on('text', async (msg) => {
             send_trailer_with_poster(msg.chat.id, movie);
         }
     } else {
-        bot.sendMessage(msg.chat.id, "Bunday ID bilan kino topilmadi");
+        bot.sendMessage(msg.chat.id, "Bunday kodli kino topilmadi");
     }
 });
 
@@ -850,7 +848,7 @@ bot.onText(/\/deletemovie\s+(\d+)/, async (msg, match) => {
 });
 
 // ======================
-// SESSION HANDLING
+// SESSION HANDLING (addmovie va changeid)
 // ======================
 bot.on('message', async (msg) => {
     const userId = msg.from.id;
@@ -981,18 +979,21 @@ bot.on('message', async (msg) => {
 });
 
 // ======================
-// Kanal postidan qism yuklash
+// Kanal postidan qism yuklash — ID orqali tekshirish
 // ======================
 bot.on('channel_post', async (msg) => {
-    if (msg.chat.username !== UPLOAD_CHANNEL || !msg.video || !msg.caption) return;
+    if (msg.chat.id !== UPLOAD_CHANNEL_ID) return;
+    if (!msg.video || !msg.caption) return;
 
     let movie_id = null;
     let part = null;
+
     for (let line of msg.caption.split("\n")) {
-        if (line.toLowerCase().startsWith("id:")) {
+        const lower = line.toLowerCase().trim();
+        if (lower.startsWith("id:")) {
             movie_id = line.split(":", 2)[1]?.trim()?.padStart(3, '0');
         }
-        if (line.toLowerCase().startsWith("qism:")) {
+        if (lower.startsWith("qism:")) {
             part = parseInt(line.split(":", 2)[1]?.trim());
         }
     }
